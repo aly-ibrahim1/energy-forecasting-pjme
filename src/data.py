@@ -1,6 +1,6 @@
 import pandas as pd
 
-def load_data(path="../data/raw/PJME_hourly.csv", to_period=False):
+def load_data(path="../data/raw/PJME_hourly.csv", to_period=False, granularity="daily"):
     """
     Load PJME hourly CSV -> daily sum series.
     - Parses Datetime
@@ -12,9 +12,29 @@ def load_data(path="../data/raw/PJME_hourly.csv", to_period=False):
     df = pd.read_csv(path, parse_dates=["Datetime"])
     df = df.groupby("Datetime", as_index=False)["PJME_MW"].mean()  # resolve dupes by averaging
     df = df.set_index("Datetime").sort_index()
-    daily = df.resample("D").sum()                                # total daily consumption
 
-    if to_period:
-        daily = daily.to_period("D")
+    if granularity == "daily":
+        df = df.resample("D").sum()
 
-    return daily
+        if to_period:
+            df = df.to_period("D")
+
+    elif granularity == "monthly":
+        df = df.resample("M").sum()
+
+        if to_period:
+            df = df.to_period("M")
+
+    elif granularity == "weekly":
+        df = df.resample("W").sum()
+
+        if to_period:
+            df = df.to_period("W")
+
+    elif granularity == "yearly":
+        df = df.resample("Y").sum()
+
+        if to_period:
+            df = df.to_period("Y")
+
+    return df
