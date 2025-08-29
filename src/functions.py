@@ -2,7 +2,6 @@
 from statsmodels.tsa.deterministic import DeterministicProcess, CalendarFourier
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
 
 def make_deterministic_features(y, train_start=None, train_end=None,
     order=2, fourier_order=5, model=LinearRegression(fit_intercept=False)):
@@ -43,14 +42,22 @@ def make_deterministic_features(y, train_start=None, train_end=None,
         X_dp_train = X_dp.loc[train_start:train_end]
         y = y.loc[train_start:train_end]
 
+    else:
+        X_dp_train = X_dp
+
     # Fit trend model
     model.fit(X_dp_train, y)
 
     # fit and return fit-window outputs
-    y_hat_fit = pd.DataFrame(model.predict(X_dp_train), index=y.index)
-    resid_fit = y - y_hat_fit
+    y_hat_fit = pd.DataFrame(
+        model.predict(X_dp_train),
+        index=y.index,
+        columns=y.columns
+    )
 
-    return dp, X_dp, model, y_hat_fit, resid_fit, X_dp_train
+    y_resid = y - y_hat_fit
+
+    return dp, X_dp, model, y_hat_fit, y_resid, X_dp_train
 
 
 def make_residual_features(y, calendar_df, holidays, lags=[1,2,7,14,21,28], windows=[7,30,365]):
@@ -63,7 +70,7 @@ def make_residual_features(y, calendar_df, holidays, lags=[1,2,7,14,21,28], wind
                 Target time series with proper time index.
             calendar_df : pd.DataFrame
                 Calendar features (dow, is_weekend, month, etc.).
-            holiday_df : pd.DataFrame
+            holidays :
                 Holiday features (is_holiday).
             lags : list of int
                 lags (in periods) to include.
