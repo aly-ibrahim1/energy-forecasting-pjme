@@ -1,9 +1,8 @@
-
 from statsmodels.tsa.deterministic import DeterministicProcess, CalendarFourier
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 
-def make_deterministic_features(y, train_start=None, train_end=None,
+def make_deterministic_features(y, granularity = 'daily', train_start=None, train_end=None,
     order=2, fourier_order=5, model=LinearRegression(fit_intercept=False)):
     """
     Create deterministic (trend + Fourier seasonal) features
@@ -24,17 +23,27 @@ def make_deterministic_features(y, train_start=None, train_end=None,
         X_dp : pd.DataFrame
             in-sample deterministic features aligned to y.
     """
-    fourier_year = CalendarFourier(freq="A", order=fourier_order)
-    fourier_week = CalendarFourier(freq="W", order=3)
+    fourier_year = CalendarFourier(freq="YE", order=fourier_order)
+    if granularity == 'daily':
+        fourier_week = CalendarFourier(freq="W", order=3)
 
-    dp = DeterministicProcess(
+        dp = DeterministicProcess(
         index=y.index,
         constant=True,
         order=order,
         seasonal=False,
         additional_terms=[fourier_year, fourier_week],
         drop=True,
-    )
+        )
+    else:
+        dp = DeterministicProcess(
+            index=y.index,
+            constant=True,
+            order=order,
+            seasonal=False,
+            additional_terms=[fourier_year],
+            drop=True,
+        )
     X_dp = dp.in_sample()
 
     # choose fit window
@@ -59,8 +68,8 @@ def make_deterministic_features(y, train_start=None, train_end=None,
 
     return dp, X_dp, model, y_hat_fit, y_resid, X_dp_train
 
-
-def make_residual_features(y, calendar_df, holidays, lags=[1,2,7,14,21,28], windows=[7,30,365]):
+def make_residual_features(y, calendar_df, holidays, granularity='daily',
+                           lags=[1,2,7,14,21,28], windows=[7,30,365]):
     """
         create lag and rolling features for residual modeling,
         and combine with calendar/holiday features.
@@ -93,10 +102,14 @@ def make_residual_features(y, calendar_df, holidays, lags=[1,2,7,14,21,28], wind
         X[f"roll{w}_mean"] = r.mean()
         X[f"roll{w}_std"] = r.std()
 
+
     # holidays
-    X['is_holiday'] = y.index.isin(holidays).astype(int)
+    if granularity == 'daily' and holidays is not None:
+        holiday_daily = y.index.isin(holidays).astype(int)
+        X['is_holiday'] = holiday_daily
 
     # calendar
-    X = X.join(calendar_df)
+    if calendar_df is not None:
+        X = X.join(calendar_df)
 
     return X
