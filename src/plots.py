@@ -29,6 +29,8 @@ plot_params = dict(
     legend=False,
 )
 
+## Adapted from Kaggle's Time Series notebook: "https://www.kaggle.com/learn/time-series"
+
 def seasonal_plot(X, y, period, freq, ax=None):
     if ax is None:
         _, ax = plt.subplot()
